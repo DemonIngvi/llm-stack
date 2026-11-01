@@ -13,3 +13,16 @@ endpoints:
       titleConvo: true
       titleModel: 'current_model'
       modelDisplayLabel: 'LiteLLM'
+
+mcpSettings:
+  allowedDomains:
+    - doc-guide
+
+mcpServers:
+  doc-guide:
+    title: Документация
+    description: Показывает, чего не хватает в документации проекта, ведёт по шагам, правит файлы и публикует их
+    type: streamable-http
+    url: http://doc-guide:8000/mcp
+    timeout: 120000
+    chatMenu: true
