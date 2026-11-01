@@ -19,7 +19,9 @@ case "$(uname -s)" in
     export GH_TOKEN="${GH_TOKEN:-}"
     export WSLENV="GH_TOKEN:STACK_HOME:REPO_URL"
     export MSYS_NO_PATHCONV=1
-    exec wsl.exe -d "${WSL_DISTRO:-Ubuntu}" -- bash -c 'bash "$(wslpath -a "$1")"' _ "$(cygpath -am "$0")"
+    distro="${WSL_DISTRO:-Ubuntu}"
+    script="$(wsl.exe -d "$distro" --exec wslpath -a "$(cygpath -am "$0")" | tr -d '\r')"
+    exec wsl.exe -d "$distro" --exec bash "$script"
     ;;
 esac
 
