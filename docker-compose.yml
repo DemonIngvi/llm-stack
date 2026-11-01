@@ -1,0 +1,103 @@
+# LibreChat + LiteLLM from official images.
+# Images are pinned by version and digest: floating tags (latest, main-stable)
+# were replaced with malicious LiteLLM builds on 2026-10-21.
+# Run through deploy.sh: it fetches this repo and generates ../.env.
+name: llm-stack
+
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:v1.106.6@sha256:37e2dafb088a7723beb998590682957386dfc83ffea1848486f8e0e5cfac0b06
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4000:4000"
+    environment:
+      DATABASE_URL: "postgresql://llmproxy:${LITELLM_DB_PASSWORD}@litellm-db:5432/litellm"
+      STORE_MODEL_IN_DB: "True"
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+      UI_USERNAME: admin
+      UI_PASSWORD: ${LITELLM_UI_PASSWORD}
+      LITELLM_TELEMETRY: "False"
+    depends_on:
+      litellm-db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness')"
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 60s
+
+  litellm-db:
+    image: postgres:16@sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: litellm
+      POSTGRES_USER: llmproxy
+      POSTGRES_PASSWORD: ${LITELLM_DB_PASSWORD}
+    volumes:
+      - litellm-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d litellm -U llmproxy"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  librechat:
+    image: registry.librechat.ai/librechat-ai/librechat:v0.8.8@sha256:5b706bcee1ca154a1e2987303aaeca0eb27f97919cccee4bb604226c2f8abf61
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3080:3080"
+    env_file:
+      - ../.env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3080
+      MONGO_URI: mongodb://mongodb:27017/LibreChat
+      MEILI_HOST: http://meilisearch:7700
+      SEARCH: "true"
+      CONFIG_PATH: /app/librechat.yaml
+      ENDPOINTS: custom,agents
+      DOMAIN_CLIENT: http://localhost:3080
+      DOMAIN_SERVER: http://localhost:3080
+      ALLOW_EMAIL_LOGIN: "true"
+      ALLOW_REGISTRATION: "true"
+      ALLOW_SOCIAL_LOGIN: "false"
+    volumes:
+      - ./librechat.yaml:/app/librechat.yaml:ro
+      - librechat-images:/app/client/public/images
+      - librechat-uploads:/app/uploads
+      - librechat-logs:/app/logs
+    depends_on:
+      litellm:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
+      meilisearch:
+        condition: service_started
+
+  mongodb:
+    image: mongo:8.0.20@sha256:098862b1339f031900ca66cf8fef799e616d6324fa41b9a263f2ec899552c1ef
+    restart: unless-stopped
+    command: mongod --noauth
+    volumes:
+      - librechat-mongo:/data/db
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.35.1@sha256:8b57fc3c7f46535ddef3828df1538465ac19d892eb57c9a10da6df0880bd5856
+    restart: unless-stopped
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+    volumes:
+      - librechat-meili:/meili_data
+
+volumes:
+  litellm-db:
+  librechat-images:
+  librechat-uploads:
+  librechat-logs:
+  librechat-mongo:
+  librechat-meili:
