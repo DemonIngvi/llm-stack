@@ -102,7 +102,7 @@ detect_windows_host
 
 echo "[3/5] Скачиваю образы и собираю dsh"
 "${COMPOSE[@]}" pull -q --ignore-buildable
-"${COMPOSE[@]}" build -q dsh
+"${COMPOSE[@]}" build -q dsh dsh-bridge
 
 echo "[4/5] Запускаю LiteLLM и выдаю ключи"
 "${COMPOSE[@]}" up -d --wait litellm

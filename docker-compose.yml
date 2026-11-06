@@ -103,6 +103,24 @@ services:
       litellm:
         condition: service_healthy
 
+  # LibreChat ↔ dsh: an OpenAI-compatible endpoint and MCP tools, one dsh process per conversation.
+  dsh-bridge:
+    build: ./dsh
+    image: llm-stack/dsh:local
+    restart: unless-stopped
+    entrypoint: ["python3", "/opt/bridge/bridge.py"]
+    environment:
+      DSH_HOME: /data/dsh
+      LITELLM_URL: http://litellm:4000
+      LITELLM_API_KEY: ${LITELLM_DSH_KEY}
+      DSH_UI_URL: http://localhost:3081/
+    volumes:
+      - ../dsh-home:/data/dsh
+      - ${DSH_WORKSPACE:-../dsh-workspace}:/workspace
+    depends_on:
+      litellm:
+        condition: service_healthy
+
   mongodb:
     image: mongo:8.0.20@sha256:098862b1339f031900ca66cf8fef799e616d6324fa41b9a263f2ec899552c1ef
     restart: unless-stopped

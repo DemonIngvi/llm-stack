@@ -68,6 +68,7 @@ check "mock: готовый ответ без провайдера" last_body /m
 check "ключ не сохранён в файлах стека" bash -c '! grep -rq sk-test-deepseek "$0"' "$STACK_HOME"
 
 check "dsh: файл настроек создан" test -f "$PATCH"
+check "dsh: настройки для моста (профиль sdk) тоже" cmp -s "$PATCH" "${PATCH%/web/*}/sdk/cordis.patch.yml"
 check "dsh: все модели и маршрут на LiteLLM" python3 - "$PATCH" <<'EOF'
 import json, sys
 text = open(sys.argv[1]).read()

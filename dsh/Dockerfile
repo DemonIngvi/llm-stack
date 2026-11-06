@@ -11,6 +11,7 @@ WORKDIR /opt/dsh
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY --chmod=0755 entrypoint.sh /usr/local/bin/dsh-entrypoint
+COPY bridge/ /opt/bridge/
 
 ENV PATH=/opt/dsh/node_modules/.bin:$PATH
 USER node

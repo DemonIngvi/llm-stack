@@ -21,7 +21,8 @@ handover_to_wsl() {
 STACK_HOME="${STACK_HOME:-$HOME/llm-stack}"
 ENV_FILE="$STACK_HOME/.env"
 LITELLM_URL="${LITELLM_URL:-http://127.0.0.1:4000}"
-DSH_PATCH="$STACK_HOME/dsh-home/profiles/web/cordis.patch.yml"
+# dsh reads models per profile: web for its own UI, sdk for the LibreChat bridge.
+DSH_PATCHES=("$STACK_HOME/dsh-home/profiles/web/cordis.patch.yml" "$STACK_HOME/dsh-home/profiles/sdk/cordis.patch.yml")
 
 die() { echo "ОШИБКА: $*" >&2; exit 1; }
 
@@ -54,7 +55,5 @@ ensure_virtual_key() {
 
 # Writes LiteLLM's model list into dsh settings, unless they were edited in dsh.
 sync_dsh_models() {
-  local scripts_dir="$1"
-  mkdir -p "$(dirname "$DSH_PATCH")"
-  litellm_admin /model/info | python3 "$scripts_dir/sync_dsh_models.py" "$DSH_PATCH"
+  litellm_admin /model/info | python3 "$1/sync_dsh_models.py" "${DSH_PATCHES[@]}"
 }

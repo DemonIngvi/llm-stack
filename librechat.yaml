@@ -22,10 +22,24 @@ endpoints:
         fetch: false
       titleConvo: false
       modelDisplayLabel: 'Хелпер'
+    # DeepSeek Harness: сообщение уходит прямо в сессию dsh, модель LibreChat не участвует.
+    # Модель в списке — та, на которой работает dsh; номер разговора связывает его с сессией dsh.
+    - name: 'DeepSeek Harness'
+      apiKey: 'none'
+      baseURL: 'http://dsh-bridge:8000/v1'
+      headers:
+        X-Conversation-Id: '{{LIBRECHAT_BODY_CONVERSATIONID}}'
+        X-User-Id: '{{LIBRECHAT_USER_ID}}'
+      models:
+        default: ['no-models-in-litellm-yet']
+        fetch: true
+      titleConvo: false
+      modelDisplayLabel: 'DeepSeek Harness'
 
 mcpSettings:
   allowedDomains:
     - doc-guide
+    - dsh-bridge
 
 mcpServers:
   doc-guide:
@@ -35,6 +49,14 @@ mcpServers:
     url: http://doc-guide:8000/mcp
     timeout: 120000
     chatMenu: true
+  # Для агентов LibreChat: передать задачу в dsh и получить короткий статус и итог.
+  dsh:
+    title: DeepSeek Harness
+    description: Передаёт задачу агенту dsh, возвращает короткий статус и итог
+    type: streamable-http
+    url: http://dsh-bridge:8000/mcp
+    timeout: 60000
+    chatMenu: false
 
 # Подписи хелперов в выборе модели.
 modelSpecs:
