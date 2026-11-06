@@ -12,6 +12,7 @@
 set -euo pipefail
 
 source "$(dirname "$0")/scripts/common.sh"
+keep_wsl_awake
 handover_to_wsl "$0" "$@"
 
 REPO_URL="${REPO_URL:-https://github.com/DemonIngvi/llm-stack.git}"

@@ -18,6 +18,22 @@ handover_to_wsl() {
   exec wsl.exe -d "$distro" --exec bash "$script" "$@"
 }
 
+# WSL stops a minute after the last Windows-side process detaches, taking Docker
+# and the stack with it. A hidden `sleep infinity` keeps it up until reboot.
+keep_wsl_awake() {
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) ;;
+    *) return 0 ;;
+  esac
+  local distro="${WSL_DISTRO:-Ubuntu}"
+  powershell.exe -NoProfile -Command "
+    \$running = Get-CimInstance Win32_Process -Filter \"Name='wsl.exe'\" |
+      Where-Object { \$_.CommandLine -match 'sleep infinity' -and \$_.CommandLine -match '$distro' }
+    if (-not \$running) {
+      Start-Process wsl.exe -ArgumentList '-d','$distro','--exec','sleep','infinity' -WindowStyle Hidden
+    }" >/dev/null
+}
+
 STACK_HOME="${STACK_HOME:-$HOME/llm-stack}"
 ENV_FILE="$STACK_HOME/.env"
 LITELLM_URL="${LITELLM_URL:-http://127.0.0.1:4000}"
