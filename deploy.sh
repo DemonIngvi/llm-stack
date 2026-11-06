@@ -112,6 +112,13 @@ sync_dsh_models "$REPO_DIR/scripts" || true
 
 echo "[5/5] Запускаю LibreChat и dsh"
 "${COMPOSE[@]}" up -d
+# librechat.yaml is mounted as a single file: a container keeps the old copy
+# after git replaces it, so recreate LibreChat whenever the file changed.
+config_sum="$(sha256sum "$REPO_DIR/librechat.yaml" | cut -d' ' -f1)"
+if [ "$config_sum" != "$(cat "$STACK_HOME/.librechat.yaml.sha256" 2>/dev/null)" ]; then
+  "${COMPOSE[@]}" up -d --force-recreate librechat
+  echo "$config_sum" > "$STACK_HOME/.librechat.yaml.sha256"
+fi
 wait_http LibreChat http://127.0.0.1:3080/health
 
 cat <<EOF
