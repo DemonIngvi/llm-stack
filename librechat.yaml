@@ -13,15 +13,17 @@ endpoints:
       titleConvo: true
       titleModel: 'current_model'
       modelDisplayLabel: 'LiteLLM'
+    # ОТКЛЮЧЕНО (2026-11-06): хелперы документации пока не работают как надо.
+    # Чтобы вернуть, раскомментируйте этот блок, блок doc-guide в mcpServers и modelSpecs в конце файла.
     # Хелперы документации: управляет скрипт, модель из HELPER_MODEL только пишет пояснение.
-    - name: 'Хелперы'
-      apiKey: 'none'
-      baseURL: 'http://doc-dialog:8000/v1'
-      models:
-        default: ['helper-rnd', 'helper-sdd', 'helper-ux', 'helper-architecture', 'helper-delivery']
-        fetch: false
-      titleConvo: false
-      modelDisplayLabel: 'Хелпер'
+    # - name: 'Хелперы'
+    #   apiKey: 'none'
+    #   baseURL: 'http://doc-dialog:8000/v1'
+    #   models:
+    #     default: ['helper-rnd', 'helper-sdd', 'helper-ux', 'helper-architecture', 'helper-delivery']
+    #     fetch: false
+    #   titleConvo: false
+    #   modelDisplayLabel: 'Хелпер'
     # DeepSeek Harness: сообщение уходит прямо в сессию dsh, модель LibreChat не участвует.
     # Модель в списке — та, на которой работает dsh; номер разговора связывает его с сессией dsh.
     - name: 'DeepSeek Harness'
@@ -42,13 +44,14 @@ mcpSettings:
     - dsh-bridge
 
 mcpServers:
-  doc-guide:
-    title: Документация
-    description: Показывает, чего не хватает в документации проекта, ведёт по шагам, правит файлы и публикует их
-    type: streamable-http
-    url: http://doc-guide:8000/mcp
-    timeout: 120000
-    chatMenu: true
+  # ОТКЛЮЧЕНО вместе с хелперами, см. выше.
+  # doc-guide:
+  #   title: Документация
+  #   description: Показывает, чего не хватает в документации проекта, ведёт по шагам, правит файлы и публикует их
+  #   type: streamable-http
+  #   url: http://doc-guide:8000/mcp
+  #   timeout: 120000
+  #   chatMenu: true
   # Для агентов LibreChat: передать задачу в dsh и получить короткий статус и итог.
   dsh:
     title: DeepSeek Harness
@@ -58,48 +61,50 @@ mcpServers:
     timeout: 60000
     chatMenu: false
 
+# ОТКЛЮЧЕНО вместе с хелперами, см. выше. Пока список modelSpecs есть,
+# LibreChat показывает в выборе модели в первую очередь его.
 # Подписи хелперов в выборе модели.
-modelSpecs:
-  enforce: false
-  prioritize: false
-  list:
-  - name: helper-rnd
-    label: 'Хелпер: исследования'
-    description: Бриф, варианты и выбор
-    group: Хелперы документации
-    preset:
-      endpoint: Хелперы
-      model: helper-rnd
-      modelLabel: 'Хелпер: исследования'
-  - name: helper-sdd
-    label: 'Хелпер: требования'
-    description: Требования, эпики и истории
-    group: Хелперы документации
-    preset:
-      endpoint: Хелперы
-      model: helper-sdd
-      modelLabel: 'Хелпер: требования'
-  - name: helper-ux
-    label: 'Хелпер: интерфейс'
-    description: Экраны, состояния, вид
-    group: Хелперы документации
-    preset:
-      endpoint: Хелперы
-      model: helper-ux
-      modelLabel: 'Хелпер: интерфейс'
-  - name: helper-architecture
-    label: 'Хелпер: архитектура'
-    description: Решения, компоненты, данные, каналы
-    group: Хелперы документации
-    preset:
-      endpoint: Хелперы
-      model: helper-architecture
-      modelLabel: 'Хелпер: архитектура'
-  - name: helper-delivery
-    label: 'Хелпер: реализация'
-    description: Файл истории, задачи, приёмка
-    group: Хелперы документации
-    preset:
-      endpoint: Хелперы
-      model: helper-delivery
-      modelLabel: 'Хелпер: реализация'
+# modelSpecs:
+#   enforce: false
+#   prioritize: false
+#   list:
+#   - name: helper-rnd
+#     label: 'Хелпер: исследования'
+#     description: Бриф, варианты и выбор
+#     group: Хелперы документации
+#     preset:
+#       endpoint: Хелперы
+#       model: helper-rnd
+#       modelLabel: 'Хелпер: исследования'
+#   - name: helper-sdd
+#     label: 'Хелпер: требования'
+#     description: Требования, эпики и истории
+#     group: Хелперы документации
+#     preset:
+#       endpoint: Хелперы
+#       model: helper-sdd
+#       modelLabel: 'Хелпер: требования'
+#   - name: helper-ux
+#     label: 'Хелпер: интерфейс'
+#     description: Экраны, состояния, вид
+#     group: Хелперы документации
+#     preset:
+#       endpoint: Хелперы
+#       model: helper-ux
+#       modelLabel: 'Хелпер: интерфейс'
+#   - name: helper-architecture
+#     label: 'Хелпер: архитектура'
+#     description: Решения, компоненты, данные, каналы
+#     group: Хелперы документации
+#     preset:
+#       endpoint: Хелперы
+#       model: helper-architecture
+#       modelLabel: 'Хелпер: архитектура'
+#   - name: helper-delivery
+#     label: 'Хелпер: реализация'
+#     description: Файл истории, задачи, приёмка
+#     group: Хелперы документации
+#     preset:
+#       endpoint: Хелперы
+#       model: helper-delivery
+#       modelLabel: 'Хелпер: реализация'
