@@ -1,4 +1,4 @@
-# LibreChat + LiteLLM from official images.
+# LibreChat + LiteLLM from official images, DeepSeek Harness built from a locked npm release.
 # Images are pinned by version and digest: floating tags (latest, main-stable)
 # were replaced with malicious LiteLLM builds on 2026-10-21.
 # Run through deploy.sh: it fetches this repo and generates ../.env.
@@ -18,6 +18,13 @@ services:
       UI_USERNAME: admin
       UI_PASSWORD: ${LITELLM_UI_PASSWORD}
       LITELLM_TELEMETRY: "False"
+      CHATGPT_TOKEN_DIR: /data/chatgpt
+    extra_hosts:
+      # Ollama and other servers running on this machine, outside Docker.
+      - "host.docker.internal:host-gateway"
+      - "windows-host:${WINDOWS_HOST_IP:-host-gateway}"
+    volumes:
+      - litellm-chatgpt:/data/chatgpt
     depends_on:
       litellm-db:
         condition: service_healthy
@@ -78,6 +85,24 @@ services:
       meilisearch:
         condition: service_started
 
+  # DeepSeek Harness: coding agent working through LiteLLM.
+  dsh:
+    build: ./dsh
+    image: llm-stack/dsh:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3081:3080"
+    environment:
+      DSH_HOME: /data/dsh
+      DSH_PUBLIC_URL: http://localhost:3081/
+      LITELLM_API_KEY: ${LITELLM_DSH_KEY}
+    volumes:
+      - ../dsh-home:/data/dsh
+      - ${DSH_WORKSPACE:-../dsh-workspace}:/workspace
+    depends_on:
+      litellm:
+        condition: service_healthy
+
   mongodb:
     image: mongo:8.0.20@sha256:098862b1339f031900ca66cf8fef799e616d6324fa41b9a263f2ec899552c1ef
     restart: unless-stopped
@@ -96,6 +121,7 @@ services:
 
 volumes:
   litellm-db:
+  litellm-chatgpt:
   librechat-images:
   librechat-uploads:
   librechat-logs:

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Fetches this repo, pulls the pinned official images and starts
-# LibreChat + LiteLLM in Docker. Run from Git Bash on Windows or inside WSL/Linux.
+# Fetches this repo, pulls the pinned official images, builds dsh and starts
+# LibreChat + LiteLLM + DeepSeek Harness in Docker.
+# Run from Git Bash on Windows or inside WSL/Linux.
 #
 #   bash deploy.sh
 #
@@ -10,31 +11,15 @@
 #   WSL_DISTRO   WSL distribution, default Ubuntu
 set -euo pipefail
 
-# Docker lives in WSL: on Windows hand over to it, passing the token from `gh`.
-case "$(uname -s)" in
-  MINGW*|MSYS*|CYGWIN*)
-    if [ -z "${GH_TOKEN:-}" ] && command -v gh >/dev/null; then
-      GH_TOKEN="$(gh auth token)"
-    fi
-    export GH_TOKEN="${GH_TOKEN:-}"
-    export WSLENV="GH_TOKEN:STACK_HOME:REPO_URL"
-    export MSYS_NO_PATHCONV=1
-    distro="${WSL_DISTRO:-Ubuntu}"
-    script="$(wsl.exe -d "$distro" --exec wslpath -a "$(cygpath -am "$0")" | tr -d '\r')"
-    exec wsl.exe -d "$distro" --exec bash "$script"
-    ;;
-esac
+source "$(dirname "$0")/scripts/common.sh"
+handover_to_wsl "$0" "$@"
 
-STACK_HOME="${STACK_HOME:-$HOME/llm-stack}"
 REPO_URL="${REPO_URL:-https://github.com/DemonIngvi/llm-stack.git}"
 BRANCH=main
 REPO_DIR="$STACK_HOME/repo"
-ENV_FILE="$STACK_HOME/.env"
 COMPOSE=(docker compose -f "$REPO_DIR/docker-compose.yml" --env-file "$ENV_FILE")
 
-die() { echo "ОШИБКА: $*" >&2; exit 1; }
-
-for tool in git docker curl openssl; do
+for tool in git docker curl openssl python3; do
   command -v "$tool" >/dev/null || die "не найден $tool"
 done
 docker info >/dev/null 2>&1 || die "Docker не запущен или нет доступа к нему"
@@ -69,6 +54,7 @@ LITELLM_SALT_KEY=$(openssl rand -hex 32)
 LITELLM_UI_PASSWORD=$(openssl rand -hex 12)
 LITELLM_DB_PASSWORD=$(openssl rand -hex 24)
 LITELLM_API_KEY=
+LITELLM_DSH_KEY=
 MEILI_MASTER_KEY=$(openssl rand -hex 32)
 CREDS_KEY=$(openssl rand -hex 32)
 CREDS_IV=$(openssl rand -hex 16)
@@ -79,7 +65,11 @@ EOF
   echo "  создан $ENV_FILE"
 }
 
-env_value() { grep "^$1=" "$ENV_FILE" | cut -d= -f2-; }
+# In WSL the Windows host (where a native Ollama runs) is the default gateway; it changes between boots.
+detect_windows_host() {
+  grep -qi microsoft /proc/version 2>/dev/null || return 0
+  set_env_value WINDOWS_HOST_IP "$(ip route | awk '/^default/ {print $3; exit}')"
+}
 
 wait_http() {
   local name="$1" url="$2" tries=90
@@ -90,33 +80,38 @@ wait_http() {
   done
 }
 
-# LibreChat works through its own LiteLLM key, not through the master key.
-ensure_librechat_key() {
-  [ -n "$(env_value LITELLM_API_KEY)" ] && return 0
-  local response key
-  response="$(curl -fsS -X POST http://127.0.0.1:4000/key/generate \
-    -H "Authorization: Bearer $(env_value LITELLM_MASTER_KEY)" \
-    -H 'Content-Type: application/json' -d '{"key_alias":"librechat"}')"
-  key="$(printf '%s' "$response" | grep -o '"key":"sk-[^"]*"' | head -1 | cut -d'"' -f4)"
-  [ -n "$key" ] || die "LiteLLM не выдал ключ для LibreChat"
-  sed -i "s|^LITELLM_API_KEY=.*|LITELLM_API_KEY=$key|" "$ENV_FILE"
+# dsh prints a fresh login link with a one-time token on every start.
+dsh_url() {
+  local tries=60 url=""
+  while [ -z "$url" ] && [ "$tries" -gt 0 ]; do
+    url="$("${COMPOSE[@]}" logs --no-log-prefix --since 10m dsh 2>/dev/null \
+      | grep -o 'http://localhost:3081/[^ ]*' | tail -1 || true)"
+    [ -n "$url" ] || { sleep 2; tries=$((tries - 1)); }
+  done
+  echo "${url:-не найдена, см. docker compose logs dsh}"
 }
 
-mkdir -p "$STACK_HOME"
+mkdir -p "$STACK_HOME/dsh-home" "$STACK_HOME/dsh-workspace"
 
-echo "[1/4] Получаю конфигурацию из $REPO_URL"
+echo "[1/5] Получаю конфигурацию из $REPO_URL"
 fetch_repo
 
-echo "[2/4] Готовлю настройки"
+echo "[2/5] Готовлю настройки"
 generate_env
+detect_windows_host
 
-echo "[3/4] Скачиваю образы"
-"${COMPOSE[@]}" pull -q
+echo "[3/5] Скачиваю образы и собираю dsh"
+"${COMPOSE[@]}" pull -q --ignore-buildable
+"${COMPOSE[@]}" build -q dsh
 
-echo "[4/4] Запускаю контейнеры"
+echo "[4/5] Запускаю LiteLLM и выдаю ключи"
 "${COMPOSE[@]}" up -d --wait litellm
-ensure_librechat_key
-"${COMPOSE[@]}" up -d librechat
+ensure_virtual_key LITELLM_API_KEY librechat
+ensure_virtual_key LITELLM_DSH_KEY dsh
+sync_dsh_models "$REPO_DIR/scripts" || true
+
+echo "[5/5] Запускаю LibreChat и dsh"
+"${COMPOSE[@]}" up -d
 wait_http LibreChat http://127.0.0.1:3080/health
 
 cat <<EOF
@@ -130,6 +125,10 @@ cat <<EOF
              Логин: admin
              Пароль: $(env_value LITELLM_UI_PASSWORD)
 
-Модели добавляются в LiteLLM: Models + Endpoints, затем Add Model.
+  dsh:       $(dsh_url)
+             Ссылка одноразовая: откройте её, дальше вход по cookie.
+             Рабочая папка агента: $STACK_HOME/dsh-workspace
+
+Добавить модель: bash add-model.sh (подробно в docs/models.md).
 Секреты: $ENV_FILE (в WSL)
 EOF

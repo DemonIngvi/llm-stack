@@ -1,0 +1,8 @@
+{
+  "name": "llm-stack-dsh",
+  "private": true,
+  "description": "Pinned DeepSeek Harness for the llm-stack container",
+  "dependencies": {
+    "@deepseek-ai/dsh": "0.2.2-rc.1"
+  }
+}
