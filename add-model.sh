@@ -40,6 +40,7 @@ done
 
 command -v python3 >/dev/null || die "не найден python3"
 [ -n "${LITELLM_MASTER_KEY:-$(env_value LITELLM_MASTER_KEY)}" ] || die "нет $ENV_FILE: сначала запустите deploy.sh"
+wait_litellm
 
 list_models() {
   litellm_admin /model/info | python3 -c '

@@ -36,6 +36,16 @@ set_env_value() {
   fi
 }
 
+# Waits up to a minute for LiteLLM, e.g. right after WSL or the stack restarted.
+wait_litellm() {
+  local tries=30
+  until curl -fs -o /dev/null --max-time 3 "$LITELLM_URL/health/liveliness"; do
+    tries=$((tries - 1))
+    [ "$tries" -gt 0 ] || die "LiteLLM не отвечает на $LITELLM_URL: запустите deploy.sh"
+    sleep 2
+  done
+}
+
 # Calls the LiteLLM admin API with the master key: litellm_admin PATH [curl args...]
 litellm_admin() {
   local path="$1"; shift

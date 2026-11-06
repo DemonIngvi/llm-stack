@@ -6,12 +6,13 @@
 |---|---|---|
 | [LibreChat](https://github.com/LibreChat-AI/LibreChat) | Чат, агенты и MCP | http://localhost:3080 |
 | [LiteLLM](https://github.com/BerriAI/litellm) | Единый шлюз моделей: ключи, учёт запросов и расходов | http://localhost:4000/ui |
-| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`) | Агент для работы с кодом и файлами | ссылку печатает `deploy.sh` |
+| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`) | Агент для работы с кодом и файлами; управляется из LibreChat | в LibreChat: endpoint «DeepSeek Harness»; свой интерфейс — по ссылке из `deploy.sh` |
 
 ```mermaid
 flowchart LR
   U((Вы)) --> LC[LibreChat :3080]
-  U --> DSH[dsh :3081]
+  LC --> BR[dsh-bridge] --> DSH[dsh]
+  U -.-> DSH
   LC --> LL[LiteLLM :4000]
   DSH --> LL
   LL --> OL[Ollama на этой машине]
@@ -20,6 +21,8 @@ flowchart LR
 ```
 
 Модели настраиваются только в LiteLLM. LibreChat и dsh получают их список оттуда, поэтому каждый запрос виден в учёте LiteLLM.
+
+Задачи для dsh ставятся прямо в LibreChat: выберите endpoint **DeepSeek Harness**. Сообщение уходит в dsh без участия модели LibreChat. Подробно: [docs/dsh-in-librechat.md](docs/dsh-in-librechat.md).
 
 ## Запуск
 
@@ -76,10 +79,12 @@ bash add-model.sh list
 ## Проверки
 
 ```bash
-bash tests/run.sh
+bash tests/run.sh             # add-model.sh и синхронизация моделей, на моке LiteLLM
+python3 tests/bridge_unit.py  # мост: подтверждения и вопросы
+bash tests/bridge.sh          # мост с настоящим dsh и моделью-сценарием, нужен Docker
 ```
 
-Тесты проверяют `add-model.sh` и синхронизацию моделей в dsh на моке LiteLLM. Docker и настоящие модели для них не нужны.
+Настоящие модели и ключи для тестов не нужны.
 
 ## Хелперы документации
 
